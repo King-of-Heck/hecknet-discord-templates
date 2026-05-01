@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_3.py
+Discord_Printer_Templates_1_4.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -69,11 +69,17 @@ def load_skull_font(size=None):
             continue
     return load_font(bold=True, size=size)   # last resort: Courier (will box)
 
+# Extra pixels (at 4x scale) to push skulls down so the top doesn't clip.
+# Increase if the skull top is still cut off; decrease if there's too much gap.
+SKULL_Y_OFFSET = 20
+
 def draw_skull_header(draw, text: str, font_text, font_skull,
                       paper_w: int, y: int):
     """
     Render  💀  <text>  💀  centred on the line, using font_skull for the glyphs
     and font_text for the label.  All coords are at hi-res (4x) scale.
+    SKULL_Y_OFFSET shifts the skulls down relative to the text so the top
+    of the glyph doesn't clip — tune it at the top of this section.
     """
     SKULL = "\U0001F480"
     gap   = int(font_text.size * 0.4)   # small gap between skull and text
@@ -83,11 +89,11 @@ def draw_skull_header(draw, text: str, font_text, font_skull,
     total_w = skull_w + gap + text_w + gap + skull_w
 
     x = (paper_w - total_w) // 2
-    draw.text((x, y), SKULL, font=font_skull, fill="black")
+    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
     x += skull_w + gap
-    draw.text((x, y), text,  font=font_text,  fill="black")
+    draw.text((x, y), text, font=font_text, fill="black")
     x += text_w + gap
-    draw.text((x, y), SKULL, font=font_skull, fill="black")
+    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
 
 
 def fetch_and_dither_image(url: str, width_px: int = TEXT_PX) -> Image.Image:

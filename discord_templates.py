@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_6.py
+Discord_Printer_Templates_1_7.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -43,7 +43,7 @@ PAPER_PX     = int(PAPER_MM / 25.4 * PRINTER_DPI)   # ≈ 638 px
 MARGIN_PX    = 10
 TEXT_PX      = PAPER_PX - 2 * MARGIN_PX
 FONT_SIZE       = 36
-SKULL_FONT_SIZE = 21      # skull size in points — adjust independently of header text
+SKULL_FONT_SIZE = 24       # skull size in points — adjust independently of header text
 RENDER_SCALE    = 4
 
 
@@ -72,29 +72,28 @@ def load_skull_font(size=None):
 
 # Extra pixels (at 4x scale) to push skulls down so the top doesn't clip.
 # Increase if the skull top is still cut off; decrease if there's too much gap.
-SKULL_Y_OFFSET = 36
+SKULL_Y_OFFSET = 16
 
 def draw_skull_header(draw, text: str, font_text, font_skull,
                       paper_w: int, y: int):
     """
     Render  💀  <text>  💀  centred on the line, using font_skull for the glyphs
     and font_text for the label.  All coords are at hi-res (4x) scale.
-    SKULL_Y_OFFSET shifts the skulls down relative to the text so the top
-    of the glyph doesn't clip — tune it at the top of this section.
+    Clipping is prevented by the top_pad passed to _render_ops.
     """
     SKULL = "\U0001F480"
-    gap   = int(font_text.size * 0.4)   # small gap between skull and text
+    gap   = int(font_text.size * 0.4)
 
     skull_w = int(font_skull.getlength(SKULL))
     text_w  = int(font_text.getlength(text))
     total_w = skull_w + gap + text_w + gap + skull_w
 
     x = (paper_w - total_w) // 2
-    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
+    draw.text((x, y), SKULL, font=font_skull, fill="black")
     x += skull_w + gap
     draw.text((x, y), text, font=font_text, fill="black")
     x += text_w + gap
-    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
+    draw.text((x, y), SKULL, font=font_skull, fill="black")
 
 
 def fetch_and_dither_image(url: str, width_px: int = TEXT_PX) -> Image.Image:
@@ -126,13 +125,15 @@ def word_wrap(text: str, font, max_width: int) -> list[str]:
     return lines or [""]
 
 
-def _render_ops(ops, paper_w, margin, line_h) -> tuple[Image.Image, int]:
-    """Render a list of (text, font, align) ops at 4× scale. Returns (image, y)."""
+def _render_ops(ops, paper_w, margin, line_h, top_pad: int = 0) -> tuple[Image.Image, int]:
+    """Render a list of (text, font, align) ops at 4× scale. Returns (image, y).
+    top_pad adds extra blank pixels above the first line (at hi-res scale) so
+    tall glyphs like emoji don't clip at the top of the canvas."""
     S = RENDER_SCALE
-    total_h = len(ops) * line_h + line_h * 2
+    total_h = len(ops) * line_h + line_h * 2 + top_pad
     hi_res  = Image.new("RGB", (paper_w, total_h), "white")
     draw    = ImageDraw.Draw(hi_res)
-    y       = margin // 2
+    y       = margin // 2 + top_pad
     for text, font, align in ops:
         x = (paper_w - font.getlength(text)) / 2 if align == "center" else margin
         draw.text((x, y), text, font=font, fill="black")
@@ -202,11 +203,11 @@ def build_task(author: str, content: str, timestamp: datetime,
                 add(line)
         div()
 
-    hi_res, y = _render_ops(ops, paper_w, margin, line_h)
+    hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
 
     draw = ImageDraw.Draw(hi_res)
     draw_skull_header(draw, "HeckTasks", font_b, font_skull,
-                      paper_w, margin // 2)
+                      paper_w, margin // 2 + SKULL_Y_OFFSET)
 
     output = _downsample(hi_res, PAPER_PX, y)
     return _attach_images(output, attachment_imgs)
@@ -248,11 +249,11 @@ def build_notes(author: str, content: str, timestamp: datetime,
                 add(line)
         div()
 
-    hi_res, y = _render_ops(ops, paper_w, margin, line_h)
+    hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
 
     draw = ImageDraw.Draw(hi_res)
     draw_skull_header(draw, "HeckNotes", font_b, font_skull,
-                      paper_w, margin // 2)
+                      paper_w, margin // 2 + SKULL_Y_OFFSET)
 
     output = _downsample(hi_res, PAPER_PX, y)
     return _attach_images(output, attachment_imgs)

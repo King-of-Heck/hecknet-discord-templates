@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_1.py
+Discord_Printer_Templates_1_2.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -53,6 +53,41 @@ def load_font(bold=False, size=None):
         return ImageFont.truetype(path, size * RENDER_SCALE)
     except OSError:
         return ImageFont.load_default()
+
+_SKULL_FONT_CANDIDATES = [
+    "DejaVuSansMono-Bold.ttf",          # free; install from dejavu-fonts.org
+    "seguisym.ttf",                     # Segoe UI Symbol — ships with Windows 8+
+    "C:/Windows/Fonts/seguisym.ttf",    # explicit path fallback
+]
+
+def load_skull_font(size=None):
+    size = size or FONT_SIZE
+    for path in _SKULL_FONT_CANDIDATES:
+        try:
+            return ImageFont.truetype(path, size * RENDER_SCALE)
+        except OSError:
+            continue
+    return load_font(bold=True, size=size)   # last resort: Courier (will box)
+
+def draw_skull_header(draw, text: str, font_text, font_skull,
+                      paper_w: int, y: int):
+    """
+    Render  ☠  <text>  ☠  centred on the line, using font_skull for the glyphs
+    and font_text for the label.  All coords are at hi-res (4x) scale.
+    """
+    SKULL = "\u2620"
+    gap   = int(font_text.size * 0.4)   # small gap between skull and text
+
+    skull_w = int(font_skull.getlength(SKULL))
+    text_w  = int(font_text.getlength(text))
+    total_w = skull_w + gap + text_w + gap + skull_w
+
+    x = (paper_w - total_w) // 2
+    draw.text((x, y), SKULL, font=font_skull, fill="black")
+    x += skull_w + gap
+    draw.text((x, y), text,  font=font_text,  fill="black")
+    x += text_w + gap
+    draw.text((x, y), SKULL, font=font_skull, fill="black")
 
 
 def fetch_and_dither_image(url: str, width_px: int = TEXT_PX) -> Image.Image:
@@ -130,11 +165,14 @@ def build_task(author: str, content: str, timestamp: datetime,
     text_w  = TEXT_PX * S
     line_h  = (FONT_SIZE + 6) * S
 
-    font_n  = load_font(bold=False)
-    font_b  = load_font(bold=True)
-    font_sm = load_font(bold=False, size=FONT_SIZE - 8)
-    DIVIDER = "─" * int(text_w / (FONT_SIZE * S * 0.62))
+    font_n     = load_font(bold=False)
+    font_b     = load_font(bold=True)
+    font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
+    font_skull = load_skull_font(size=FONT_SIZE)
+    DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
+    # The skull header line is drawn manually; everything else goes through ops.
+    # We reserve one line_h slot at the top for it via a blank placeholder.
     ops = []
 
     def add(text, bold=False, align="left", small=False):
@@ -143,7 +181,7 @@ def build_task(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    add("\u2620 HeckTasks \u2620", bold=True, align="center")
+    add("",   align="center")                                    # skull header placeholder
     add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
     add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
     div()
@@ -158,6 +196,11 @@ def build_task(author: str, content: str, timestamp: datetime,
         div()
 
     hi_res, y = _render_ops(ops, paper_w, margin, line_h)
+
+    draw = ImageDraw.Draw(hi_res)
+    draw_skull_header(draw, "HeckTasks", font_b, font_skull,
+                      paper_w, margin // 2)
+
     output = _downsample(hi_res, PAPER_PX, y)
     return _attach_images(output, attachment_imgs)
 

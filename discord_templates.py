@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_4.py
+Discord_Printer_Templates_1_5.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -42,8 +42,9 @@ PAPER_MM     = 80
 PAPER_PX     = int(PAPER_MM / 25.4 * PRINTER_DPI)   # ≈ 638 px
 MARGIN_PX    = 10
 TEXT_PX      = PAPER_PX - 2 * MARGIN_PX
-FONT_SIZE    = 36
-RENDER_SCALE = 4
+FONT_SIZE       = 36
+SKULL_FONT_SIZE = 10       # skull size in points — adjust independently of header text
+RENDER_SCALE    = 4
 
 
 def load_font(bold=False, size=None):
@@ -61,7 +62,7 @@ _SKULL_FONT_CANDIDATES = [
 ]
 
 def load_skull_font(size=None):
-    size = size or FONT_SIZE
+    size = size or SKULL_FONT_SIZE
     for path in _SKULL_FONT_CANDIDATES:
         try:
             return ImageFont.truetype(path, size * RENDER_SCALE)

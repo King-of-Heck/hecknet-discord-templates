@@ -1,9 +1,9 @@
 """
-Discord_Printer_Templates_1_0.py
+Discord_Printer_Templates_1_1.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
-  To-Do  (0) → TASK header with solid black bars above/below
+  To-Do  (0) → HeckTasks header (skull glyphs, divider style)
   Notes  (0) → HeckNotes header
   General(0) → No header — plain text only
 """
@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageWin
 import win32ui
 
 
-DISCORD_TOKEN  = "XXXXX"          # paste your new bot token here
+DISCORD_TOKEN  = "YOUR_BOT_TOKEN_HERE"          # paste your new bot token here
 
 PRINTER_NAME   = "XP-80C"
 FONT_PATH      = "cour.ttf"
@@ -44,8 +44,6 @@ MARGIN_PX    = 10
 TEXT_PX      = PAPER_PX - 2 * MARGIN_PX
 FONT_SIZE    = 36
 RENDER_SCALE = 4
-
-BAR_HEIGHT_PX = 8          # thickness of the solid TASK header bars (output px)
 
 
 def load_font(bold=False, size=None):
@@ -135,15 +133,20 @@ def build_task(author: str, content: str, timestamp: datetime,
     font_n  = load_font(bold=False)
     font_b  = load_font(bold=True)
     font_sm = load_font(bold=False, size=FONT_SIZE - 8)
+    DIVIDER = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
     ops = []
 
     def add(text, bold=False, align="left", small=False):
         ops.append((text, font_sm if small else (font_b if bold else font_n), align))
 
-    add("TASK", bold=True, align="center")
-    add(timestamp.strftime("%a %b %d  %I:%M %p"), align="center", small=True)
-    add("")  # spacer
+    def div():
+        add(DIVIDER)
+
+    add("\u2620 HeckTasks \u2620", bold=True, align="center")
+    add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
+    add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
+    div()
 
     if content.strip():
         for paragraph in content.splitlines():
@@ -152,21 +155,9 @@ def build_task(author: str, content: str, timestamp: datetime,
                 continue
             for line in word_wrap(paragraph, font_n, text_w):
                 add(line)
+        div()
 
     hi_res, y = _render_ops(ops, paper_w, margin, line_h)
-
-    # Draw solid black bars above and below the TASK label
-    # The first op (TASK) starts at y=margin//2; the label occupies line_h px.
-    draw    = ImageDraw.Draw(hi_res)
-    bar_h   = BAR_HEIGHT_PX * S
-    bar_top = margin // 2                      # just above the TASK text
-    bar_bot = margin // 2 + line_h             # just below it
-
-    draw.rectangle([margin // 2, bar_top - bar_h,
-                    paper_w - margin // 2, bar_top], fill="black")
-    draw.rectangle([margin // 2, bar_bot,
-                    paper_w - margin // 2, bar_bot + bar_h], fill="black")
-
     output = _downsample(hi_res, PAPER_PX, y)
     return _attach_images(output, attachment_imgs)
 

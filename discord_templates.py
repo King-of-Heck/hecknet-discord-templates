@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_5.py
+Discord_Printer_Templates_1_6.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -43,7 +43,7 @@ PAPER_PX     = int(PAPER_MM / 25.4 * PRINTER_DPI)   # ≈ 638 px
 MARGIN_PX    = 10
 TEXT_PX      = PAPER_PX - 2 * MARGIN_PX
 FONT_SIZE       = 36
-SKULL_FONT_SIZE = 10       # skull size in points — adjust independently of header text
+SKULL_FONT_SIZE = 21      # skull size in points — adjust independently of header text
 RENDER_SCALE    = 4
 
 
@@ -72,7 +72,7 @@ def load_skull_font(size=None):
 
 # Extra pixels (at 4x scale) to push skulls down so the top doesn't clip.
 # Increase if the skull top is still cut off; decrease if there's too much gap.
-SKULL_Y_OFFSET = 20
+SKULL_Y_OFFSET = 36
 
 def draw_skull_header(draw, text: str, font_text, font_skull,
                       paper_w: int, y: int):
@@ -175,7 +175,7 @@ def build_task(author: str, content: str, timestamp: datetime,
     font_n     = load_font(bold=False)
     font_b     = load_font(bold=True)
     font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
-    font_skull = load_skull_font(size=FONT_SIZE)
+    font_skull = load_skull_font(size=SKULL_FONT_SIZE)
     DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
     # The skull header line is drawn manually; everything else goes through ops.
@@ -220,10 +220,11 @@ def build_notes(author: str, content: str, timestamp: datetime,
     text_w  = TEXT_PX * S
     line_h  = (FONT_SIZE + 6) * S
 
-    font_n  = load_font(bold=False)
-    font_b  = load_font(bold=True)
-    font_sm = load_font(bold=False, size=FONT_SIZE - 8)
-    DIVIDER = "─" * int(text_w / (FONT_SIZE * S * 0.62))
+    font_n     = load_font(bold=False)
+    font_b     = load_font(bold=True)
+    font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
+    font_skull = load_skull_font(size=SKULL_FONT_SIZE)
+    DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
     ops = []
 
@@ -233,7 +234,7 @@ def build_notes(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    add("HeckNotes", bold=True, align="center")
+    add("",   align="center")                                    # skull header placeholder
     add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
     add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
     div()
@@ -248,6 +249,11 @@ def build_notes(author: str, content: str, timestamp: datetime,
         div()
 
     hi_res, y = _render_ops(ops, paper_w, margin, line_h)
+
+    draw = ImageDraw.Draw(hi_res)
+    draw_skull_header(draw, "HeckNotes", font_b, font_skull,
+                      paper_w, margin // 2)
+
     output = _downsample(hi_res, PAPER_PX, y)
     return _attach_images(output, attachment_imgs)
 

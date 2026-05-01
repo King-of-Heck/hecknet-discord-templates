@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_2.py
+Discord_Printer_Templates_1_3.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -55,9 +55,9 @@ def load_font(bold=False, size=None):
         return ImageFont.load_default()
 
 _SKULL_FONT_CANDIDATES = [
-    "DejaVuSansMono-Bold.ttf",          # free; install from dejavu-fonts.org
-    "seguisym.ttf",                     # Segoe UI Symbol — ships with Windows 8+
-    "C:/Windows/Fonts/seguisym.ttf",    # explicit path fallback
+    "seguiemj.ttf",                     # Segoe UI Emoji — ships with Windows 10+
+    "C:/Windows/Fonts/seguiemj.ttf",    # explicit path fallback
+    "seguisym.ttf",                     # Segoe UI Symbol — older fallback
 ]
 
 def load_skull_font(size=None):
@@ -72,10 +72,10 @@ def load_skull_font(size=None):
 def draw_skull_header(draw, text: str, font_text, font_skull,
                       paper_w: int, y: int):
     """
-    Render  ☠  <text>  ☠  centred on the line, using font_skull for the glyphs
+    Render  💀  <text>  💀  centred on the line, using font_skull for the glyphs
     and font_text for the label.  All coords are at hi-res (4x) scale.
     """
-    SKULL = "\u2620"
+    SKULL = "\U0001F480"
     gap   = int(font_text.size * 0.4)   # small gap between skull and text
 
     skull_w = int(font_skull.getlength(SKULL))

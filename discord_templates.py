@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_7.py
+HeckNet_Printer_1_8.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -24,7 +24,7 @@ PRINTER_NAME   = "XP-80C"
 FONT_PATH      = "cour.ttf"
 FONT_BOLD      = "courbd.ttf"
 
-MAX_MSG_LENGTH = 500
+MAX_MSG_LENGTH = 2000
 ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 
 # Channel  template mapping
@@ -70,16 +70,17 @@ def load_skull_font(size=None):
             continue
     return load_font(bold=True, size=size)   # last resort: Courier (will box)
 
-# Extra pixels (at 4x scale) to push skulls down so the top doesn't clip.
-# Increase if the skull top is still cut off; decrease if there's too much gap.
-SKULL_Y_OFFSET = 16
+# Shifts skulls DOWN relative to the heading text (at 4x scale, so 4px = 1 printed px).
+# Increase to push skulls lower; decrease toward 0 if they overshoot.
+SKULL_Y_OFFSET = 40
 
 def draw_skull_header(draw, text: str, font_text, font_skull,
                       paper_w: int, y: int):
     """
     Render  💀  <text>  💀  centred on the line, using font_skull for the glyphs
     and font_text for the label.  All coords are at hi-res (4x) scale.
-    Clipping is prevented by the top_pad passed to _render_ops.
+    SKULL_Y_OFFSET shifts the skulls DOWN relative to the text baseline so they
+    appear vertically centred alongside the heading rather than floating above it.
     """
     SKULL = "\U0001F480"
     gap   = int(font_text.size * 0.4)
@@ -89,11 +90,11 @@ def draw_skull_header(draw, text: str, font_text, font_skull,
     total_w = skull_w + gap + text_w + gap + skull_w
 
     x = (paper_w - total_w) // 2
-    draw.text((x, y), SKULL, font=font_skull, fill="black")
+    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
     x += skull_w + gap
     draw.text((x, y), text, font=font_text, fill="black")
     x += text_w + gap
-    draw.text((x, y), SKULL, font=font_skull, fill="black")
+    draw.text((x, y + SKULL_Y_OFFSET), SKULL, font=font_skull, fill="black")
 
 
 def fetch_and_dither_image(url: str, width_px: int = TEXT_PX) -> Image.Image:

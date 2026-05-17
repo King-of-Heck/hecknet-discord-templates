@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_9.py
+Discord_Printer_Templates_1_10.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -19,22 +19,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageWin
 import win32ui
 
 
-_wo_date  = None   # date the counter was last used
-_wo_count = 0      # number of work orders issued today
-
-def next_work_order() -> str:
-    """
-    Returns a work order number in the format DDMMYYNN where NN is a
-    zero-padded daily sequence (01, 02 … 99). Resets at midnight.
-    Example: first order on 16 May 2026 → "16052601"
-    """
-    global _wo_date, _wo_count
-    today = date.today()
-    if today != _wo_date:
-        _wo_date  = today
-        _wo_count = 0
-    _wo_count += 1
-    return today.strftime("%d%m%y") + f"{_wo_count:02d}"
+def work_order_number(ts: datetime) -> str:
+    """Returns a work order number from the message timestamp: DDMMYYHHmm."""
+    return ts.strftime("%d%m%y%H%M")
 
 
 DISCORD_TOKEN  = "YOUR_BOT_TOKEN_HERE"          # paste your new bot token here
@@ -199,7 +186,7 @@ def build_task(author: str, content: str, timestamp: datetime,
     font_skull = load_skull_font(size=SKULL_FONT_SIZE)
     DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
-    wo_number = next_work_order()
+    wo_number = work_order_number(timestamp)
 
     ops = []
 
@@ -209,14 +196,9 @@ def build_task(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    # Layout:
-    # HeckNet      drawn manually over blank placeholder
-
     add("",   align="center")                              # skull header placeholder
     div()
     add(f"Work Order {wo_number}", bold=True, align="center")
-    add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
-    add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
     div()
 
     if content.strip():

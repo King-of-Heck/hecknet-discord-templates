@@ -1,21 +1,40 @@
 """
-HeckNet_Printer_1_8.py
+Discord_Printer_Templates_1_9.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
-  To-Do  (0) → HeckTasks header (skull glyphs, divider style)
+  To-Do  (0) → HeckNet header w/ skulls, Work Order number,
+                                  dividers, then the note body
   Notes  (0) → HeckNotes header
   General(0) → No header — plain text only
 """
 
 import asyncio
 import io
-from datetime import datetime
+from datetime import datetime, date
 
 import requests
 import discord
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageWin
 import win32ui
+
+
+_wo_date  = None   # date the counter was last used
+_wo_count = 0      # number of work orders issued today
+
+def next_work_order() -> str:
+    """
+    Returns a work order number in the format DDMMYYNN where NN is a
+    zero-padded daily sequence (01, 02 … 99). Resets at midnight.
+    Example: first order on 16 May 2026 → "16052601"
+    """
+    global _wo_date, _wo_count
+    today = date.today()
+    if today != _wo_date:
+        _wo_date  = today
+        _wo_count = 0
+    _wo_count += 1
+    return today.strftime("%d%m%y") + f"{_wo_count:02d}"
 
 
 DISCORD_TOKEN  = "YOUR_BOT_TOKEN_HERE"          # paste your new bot token here
@@ -24,7 +43,7 @@ PRINTER_NAME   = "XP-80C"
 FONT_PATH      = "cour.ttf"
 FONT_BOLD      = "courbd.ttf"
 
-MAX_MSG_LENGTH = 2000
+MAX_MSG_LENGTH = 500
 ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 
 # Channel  template mapping
@@ -180,8 +199,8 @@ def build_task(author: str, content: str, timestamp: datetime,
     font_skull = load_skull_font(size=SKULL_FONT_SIZE)
     DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
 
-    # The skull header line is drawn manually; everything else goes through ops.
-    # We reserve one line_h slot at the top for it via a blank placeholder.
+    wo_number = next_work_order()
+
     ops = []
 
     def add(text, bold=False, align="left", small=False):
@@ -190,7 +209,12 @@ def build_task(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    add("",   align="center")                                    # skull header placeholder
+    # Layout:
+    # HeckNet      drawn manually over blank placeholder
+
+    add("",   align="center")                              # skull header placeholder
+    div()
+    add(f"Work Order {wo_number}", bold=True, align="center")
     add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
     add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
     div()
@@ -207,7 +231,7 @@ def build_task(author: str, content: str, timestamp: datetime,
     hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
 
     draw = ImageDraw.Draw(hi_res)
-    draw_skull_header(draw, "HeckTasks", font_b, font_skull,
+    draw_skull_header(draw, "HeckNet", font_b, font_skull,
                       paper_w, margin // 2 + SKULL_Y_OFFSET)
 
     output = _downsample(hi_res, PAPER_PX, y)

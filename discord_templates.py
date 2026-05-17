@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_10.py
+Discord_Printer_Templates_1_11.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -242,9 +242,14 @@ def build_notes(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    add("",   align="center")                                    # skull header placeholder
+    # Layout:
+    # HeckNet
+
+    add("",   align="center")                              # skull header placeholder
+    div()
+    add("Memorandum", bold=True, align="center")
     add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
-    add(timestamp.strftime("@ %I:%M %p"),   align="center", small=True)
+    add(timestamp.strftime("@ %H:%M"),      align="center", small=True)
     div()
 
     if content.strip():
@@ -259,7 +264,7 @@ def build_notes(author: str, content: str, timestamp: datetime,
     hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
 
     draw = ImageDraw.Draw(hi_res)
-    draw_skull_header(draw, "HeckNotes", font_b, font_skull,
+    draw_skull_header(draw, "HeckNet", font_b, font_skull,
                       paper_w, margin // 2 + SKULL_Y_OFFSET)
 
     output = _downsample(hi_res, PAPER_PX, y)

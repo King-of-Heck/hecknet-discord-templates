@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_11.py
+Discord_Printer_Templates_1_12.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -41,6 +41,8 @@ CHANNEL_CONFIG = {
     0: "notes",   # Notes
     0: "plain",   # General Printer
 }
+
+TIMER_CHANNEL_ID = 0   # heck-timer channel
 
 
 PRINTER_DPI  = 203
@@ -302,6 +304,76 @@ def build_plain(author: str, content: str, timestamp: datetime,
     return _attach_images(output, attachment_imgs)
 
 
+def build_timer(duration_str: str, started_at: datetime, fired_at: datetime) -> Image.Image:
+    """Prints when a !timer fires. Same HeckNet skull header, then Time's Up."""
+    S       = RENDER_SCALE
+    paper_w = PAPER_PX * S
+    margin  = MARGIN_PX * S
+    text_w  = TEXT_PX * S
+    line_h  = (FONT_SIZE + 6) * S
+
+    font_n     = load_font(bold=False)
+    font_b     = load_font(bold=True)
+    font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
+    font_skull = load_skull_font(size=SKULL_FONT_SIZE)
+    DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
+
+    time_range = (f"{started_at.strftime('%H:%M')}"
+                  f"-{fired_at.strftime('%H:%M')}")
+
+    ops = []
+
+    def add(text, bold=False, align="left", small=False):
+        ops.append((text, font_sm if small else (font_b if bold else font_n), align))
+
+    def div():
+        add(DIVIDER, align="center")
+
+    add("",                                    align="center")   # skull placeholder
+    div()
+    add("Time's Up Bucko!",   bold=True,       align="center")
+    add(f"Timer: {duration_str}",              align="center", small=True)
+    add(fired_at.strftime("%A, %B %d %Y"),     align="center", small=True)
+    div()
+    add(time_range,                            align="center", small=True)
+    div()
+
+    hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
+    draw = ImageDraw.Draw(hi_res)
+    draw_skull_header(draw, "HeckNet", font_b, font_skull,
+                      paper_w, margin // 2 + SKULL_Y_OFFSET)
+
+    return _downsample(hi_res, PAPER_PX, y)
+
+
+import re as _re
+
+_TIMER_RE = _re.compile(
+    r"!timer\s+(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b",
+    _re.IGNORECASE
+)
+
+def parse_timer_seconds(text: str):
+    """
+    Parse '!timer N unit' from message text.
+    Returns (seconds: float, display_str: str) or None if no match.
+    """
+    m = _TIMER_RE.search(text)
+    if not m:
+        return None
+    amount = float(m.group(1))
+    unit   = m.group(2).lower()
+    if unit.startswith("h"):
+        seconds = amount * 3600
+        label   = f"{amount:g} hour{'s' if amount != 1 else ''}"
+    elif unit.startswith("m"):
+        seconds = amount * 60
+        label   = f"{amount:g} minute{'s' if amount != 1 else ''}"
+    else:
+        seconds = amount
+        label   = f"{amount:g} second{'s' if amount != 1 else ''}"
+    return seconds, label
+
 BUILDERS = {
     "task":  build_task,
     "notes": build_notes,
@@ -348,9 +420,38 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author == client.user:
         return
-    if message.channel.id not in CHANNEL_CONFIG:
-        return
     if ALLOWED_USERS and message.author.id not in ALLOWED_USERS:
+        return
+
+    if TIMER_CHANNEL_ID and message.channel.id == TIMER_CHANNEL_ID:
+        result = parse_timer_seconds(message.content)
+        if result is None:
+            await message.add_reaction("❓")
+            await message.reply(
+                "Usage: `!timer 10 minutes` — supports minutes/hours/seconds",
+                delete_after=15
+            )
+            return
+        seconds, label = result
+        await message.add_reaction("⏱️")
+        print(f"⏱  Timer set: {label} ({seconds:.0f}s)")
+        started_at = datetime.now().astimezone()
+
+        async def fire_timer():
+            await asyncio.sleep(seconds)
+            fired_at = datetime.now().astimezone()
+            print(f"⏱  Timer fired: {label}")
+            try:
+                def print_it():
+                    send_to_printer(build_timer(label, started_at, fired_at))
+                await asyncio.get_event_loop().run_in_executor(None, print_it)
+            except Exception as e:
+                print(f"Timer print error: {e}")
+
+        asyncio.create_task(fire_timer())
+        return
+
+    if message.channel.id not in CHANNEL_CONFIG:
         return
 
     template = CHANNEL_CONFIG[message.channel.id]

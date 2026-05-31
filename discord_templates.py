@@ -30,7 +30,7 @@ PRINTER_NAME   = "XP-80C"
 FONT_PATH      = "cour.ttf"
 FONT_BOLD      = "courbd.ttf"
 
-MAX_MSG_LENGTH = 500
+MAX_MSG_LENGTH = 2000
 ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 
 # Channel  template mapping
@@ -144,7 +144,12 @@ def _render_ops(ops, paper_w, margin, line_h, top_pad: int = 0) -> tuple[Image.I
     draw    = ImageDraw.Draw(hi_res)
     y       = margin // 2 + top_pad
     for text, font, align in ops:
-        x = (paper_w - font.getlength(text)) / 2 if align == "center" else margin
+        if align == "center":
+            bbox = font.getbbox(text)
+            tw = bbox[2] - bbox[0]
+            x  = (paper_w - tw) / 2 - bbox[0]
+        else:
+            x = margin
         draw.text((x, y), text, font=font, fill="black")
         y += line_h
     return hi_res, y
@@ -333,7 +338,6 @@ def build_timer(duration_str: str, started_at: datetime, fired_at: datetime) -> 
     div()
     add("Time's Up Bucko!",   bold=True,       align="center")
     add(f"Timer: {duration_str}",              align="center", small=True)
-    add(fired_at.strftime("%A, %B %d %Y"),     align="center", small=True)
     div()
     add(time_range,                            align="center", small=True)
     div()

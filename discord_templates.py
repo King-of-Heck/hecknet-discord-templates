@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_12.py
+Discord_Printer_Templates_1_13.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -378,6 +378,28 @@ def parse_timer_seconds(text: str):
         label   = f"{amount:g} second{'s' if amount != 1 else ''}"
     return seconds, label
 
+
+_DELAY_RE = _re.compile(
+    r"^!delay\s+\((\d{2})(\d{2})(\d{2})\s+(\d{2}):(\d{2})\)\s+(.+)$",
+    _re.IGNORECASE | _re.DOTALL
+)
+
+def parse_delay(text: str):
+    """
+    Parse '!delay (DDMMYY HH:MM) message text' from message content.
+    Returns (fire_at: datetime, message: str) or None if no match.
+    DD/MM/YY and 24hr HH:MM. Datetime is localtime (naive).
+    """
+    m = _DELAY_RE.match(text.strip())
+    if not m:
+        return None
+    dd, mo, yy, hh, mm, body = m.groups()
+    try:
+        fire_at = datetime.strptime(f"{dd}{mo}{yy} {hh}:{mm}", "%d%m%y %H:%M")
+    except ValueError:
+        return None
+    return fire_at, body.strip()
+
 BUILDERS = {
     "task":  build_task,
     "notes": build_notes,
@@ -460,6 +482,47 @@ async def on_message(message: discord.Message):
 
     template = CHANNEL_CONFIG[message.channel.id]
     content  = message.content
+
+    if template == "task" and content.strip().lower().startswith("!delay"):
+        result = parse_delay(content)
+        if result is None:
+            await message.add_reaction("❓")
+            await message.reply(
+                "Usage: `!delay (DDMMYY HH:MM) your message`\n"
+                "Example: `!delay (160526 14:30) call the dentist`",
+                delete_after=20
+            )
+            return
+
+        fire_at, body = result
+        now = datetime.now()
+        seconds_until = (fire_at - now).total_seconds()
+
+        if seconds_until <= 0:
+            await message.add_reaction("❌")
+            await message.reply(
+                f"⚠️ That time ({fire_at.strftime('%d %b %Y %H:%M')}) is in the past.",
+                delete_after=15
+            )
+            return
+
+        await message.add_reaction("🕐")
+        print(f"Delayed print scheduled: '{body[:50]}' at {fire_at.strftime('%d %b %Y %H:%M')} "
+              f"(in {seconds_until/60:.0f} min)")
+
+        async def fire_delay():
+            await asyncio.sleep(seconds_until)
+            print_at = datetime.now().astimezone()
+            print(f"Delayed print firing: '{body[:50]}'")
+            try:
+                def print_it():
+                    print_receipt("task", "", body, print_at, [])
+                await asyncio.get_event_loop().run_in_executor(None, print_it)
+            except Exception as e:
+                print(f"Delayed print error: {e}")
+
+        asyncio.create_task(fire_delay())
+        return
 
     image_attachments = [
         a for a in message.attachments

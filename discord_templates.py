@@ -379,26 +379,65 @@ def parse_timer_seconds(text: str):
     return seconds, label
 
 
-_DELAY_RE = _re.compile(
+_DELAY_ABS_RE = _re.compile(
     r"^!delay\s+\((\d{2})(\d{2})(\d{2})\s+(\d{2}):(\d{2})\)\s+(.+)$",
+    _re.IGNORECASE | _re.DOTALL
+)
+
+_DELAY_REL_RE = _re.compile(
+    r"^!delay\s+(\d+(?:\.\d+)?)\s*(months?|weeks?|days?|hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s+(.+)$",
     _re.IGNORECASE | _re.DOTALL
 )
 
 def parse_delay(text: str):
     """
-    Parse '!delay (DDMMYY HH:MM) message text' from message content.
-    Returns (fire_at: datetime, message: str) or None if no match.
-    DD/MM/YY and 24hr HH:MM. Datetime is localtime (naive).
+    Parse !delay in two formats:
+      Absolute: !delay (DDMMYY HH:MM) message
+      Relative: !delay N unit message
+                units: months/weeks/days/hours/minutes/seconds
+    Returns (fire_at: datetime, message: str, label: str) or None if no match.
     """
-    m = _DELAY_RE.match(text.strip())
-    if not m:
-        return None
-    dd, mo, yy, hh, mm, body = m.groups()
-    try:
-        fire_at = datetime.strptime(f"{dd}{mo}{yy} {hh}:{mm}", "%d%m%y %H:%M")
-    except ValueError:
-        return None
-    return fire_at, body.strip()
+    from datetime import timedelta
+
+    m = _DELAY_ABS_RE.match(text.strip())
+    if m:
+        dd, mo, yy, hh, mm, body = m.groups()
+        try:
+            fire_at = datetime.strptime(f"{dd}{mo}{yy} {hh}:{mm}", "%d%m%y %H:%M")
+            label = fire_at.strftime("%d %b %Y %H:%M")
+            return fire_at, body.strip(), label
+        except ValueError:
+            return None
+
+    m = _DELAY_REL_RE.match(text.strip())
+    if m:
+        amount_str, unit, body = m.groups()
+        amount = float(amount_str)
+        unit   = unit.lower()
+
+        if unit.startswith("mo"):
+            delta   = timedelta(days=amount * 30.44)
+            label   = f"{amount:g} month{'s' if amount != 1 else ''}"
+        elif unit.startswith("w"):
+            delta   = timedelta(weeks=amount)
+            label   = f"{amount:g} week{'s' if amount != 1 else ''}"
+        elif unit.startswith("d"):
+            delta   = timedelta(days=amount)
+            label   = f"{amount:g} day{'s' if amount != 1 else ''}"
+        elif unit.startswith("h"):
+            delta   = timedelta(hours=amount)
+            label   = f"{amount:g} hour{'s' if amount != 1 else ''}"
+        elif unit.startswith("m"):
+            delta   = timedelta(minutes=amount)
+            label   = f"{amount:g} minute{'s' if amount != 1 else ''}"
+        else:
+            delta   = timedelta(seconds=amount)
+            label   = f"{amount:g} second{'s' if amount != 1 else ''}"
+
+        fire_at = datetime.now() + delta
+        return fire_at, body.strip(), label
+
+    return None
 
 BUILDERS = {
     "task":  build_task,
@@ -488,13 +527,14 @@ async def on_message(message: discord.Message):
         if result is None:
             await message.add_reaction("❓")
             await message.reply(
-                "Usage: `!delay (DDMMYY HH:MM) your message`\n"
-                "Example: `!delay (160526 14:30) call the dentist`",
+                "Usage:\n"
+                "`!delay (DDMMYY HH:MM) message` — specific date/time\n"
+                "`!delay 1 week message` — relative (seconds/minutes/hours/days/weeks/months)",
                 delete_after=20
             )
             return
 
-        fire_at, body = result
+        fire_at, body, label = result
         now = datetime.now()
         seconds_until = (fire_at - now).total_seconds()
 
@@ -507,8 +547,8 @@ async def on_message(message: discord.Message):
             return
 
         await message.add_reaction("🕐")
-        print(f"Delayed print scheduled: '{body[:50]}' at {fire_at.strftime('%d %b %Y %H:%M')} "
-              f"(in {seconds_until/60:.0f} min)")
+        print(f"Delayed print scheduled: '{body[:50]}' in {label} "
+              f"(fires at {fire_at.strftime('%d %b %Y %H:%M')})")
 
         async def fire_delay():
             await asyncio.sleep(seconds_until)

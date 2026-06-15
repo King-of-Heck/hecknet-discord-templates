@@ -9,6 +9,9 @@ Channel templates
   General(0) → No header — plain text only
 """
 
+import sys
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import asyncio
 import io
 from datetime import datetime, date

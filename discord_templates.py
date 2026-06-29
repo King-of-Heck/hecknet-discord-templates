@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_13.py
+Discord_Printer_Templates_1_15.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -9,11 +9,15 @@ Channel templates
   General(0) → No header — plain text only
 """
 
-import sys
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
 import asyncio
 import io
+import json
+import uuid
+import os
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime, date
 
 import requests
@@ -46,6 +50,36 @@ CHANNEL_CONFIG = {
 }
 
 TIMER_CHANNEL_ID = 0   # heck-timer channel
+
+
+DELAYS_FILE = "pending_delays.json"
+
+def _load_delays() -> dict:
+    if os.path.exists(DELAYS_FILE):
+        try:
+            with open(DELAYS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def _save_delays(delays: dict):
+    with open(DELAYS_FILE, "w", encoding="utf-8") as f:
+        json.dump(delays, f, indent=2)
+
+def _add_delay(delay_id: str, fire_at: datetime, body: str, channel_id: int):
+    delays = _load_delays()
+    delays[delay_id] = {
+        "fire_at":    fire_at.isoformat(),
+        "body":       body,
+        "channel_id": channel_id,
+    }
+    _save_delays(delays)
+
+def _remove_delay(delay_id: str):
+    delays = _load_delays()
+    delays.pop(delay_id, None)
+    _save_delays(delays)
 
 
 PRINTER_DPI  = 203
@@ -472,6 +506,30 @@ def print_receipt(template, author, content, timestamp, attachment_imgs):
     send_to_printer(build_receipt(template, author, content, timestamp, attachment_imgs))
 
 
+async def _run_delay(delay_id: str, seconds_until: float,
+                     fire_at: datetime, body: str, channel_id: int):
+    """Wait then print the delayed Work Order and post to Discord."""
+    await asyncio.sleep(seconds_until)
+    print_at = datetime.now().astimezone()
+    print(f"Delayed print firing: '{body[:50]}'")
+
+    try:
+        def print_it():
+            print_receipt("task", "", body, print_at, [])
+        await asyncio.get_event_loop().run_in_executor(None, print_it)
+    except Exception as e:
+        print(f"Delayed print error: {e}")
+
+    try:
+        channel = client.get_channel(channel_id)
+        if channel:
+            await channel.send(f"🕐 **Reminder:** {body}")
+    except Exception as e:
+        print(f"Discord notify error: {e}")
+
+    _remove_delay(delay_id)
+
+
 intents = discord.Intents.default()
 intents.message_content = True
 client  = discord.Client(intents=intents)
@@ -483,6 +541,21 @@ async def on_ready():
     watching = ", ".join(str(cid) for cid in CHANNEL_CONFIG)
     print(f" Bot ready: {client.user}")
     print(f"   Watching channels: {watching}")
+
+    delays = _load_delays()
+    if delays:
+        print(f"Reloading {len(delays)} pending delay(s)...")
+    for delay_id, entry in list(delays.items()):
+        fire_at   = datetime.fromisoformat(entry["fire_at"])
+        body      = entry["body"]
+        channel_id = entry["channel_id"]
+        seconds_until = (fire_at - datetime.now()).total_seconds()
+        if seconds_until <= 0:
+            print(f"Missed delay '{body[:40]}' — firing now")
+            seconds_until = 0
+        else:
+            print(f"Rescheduled '{body[:40]}' in {seconds_until/60:.0f} min")
+        asyncio.create_task(_run_delay(delay_id, seconds_until, fire_at, body, channel_id))
 
 @client.event
 async def on_message(message: discord.Message):
@@ -553,18 +626,9 @@ async def on_message(message: discord.Message):
         print(f"Delayed print scheduled: '{body[:50]}' in {label} "
               f"(fires at {fire_at.strftime('%d %b %Y %H:%M')})")
 
-        async def fire_delay():
-            await asyncio.sleep(seconds_until)
-            print_at = datetime.now().astimezone()
-            print(f"Delayed print firing: '{body[:50]}'")
-            try:
-                def print_it():
-                    print_receipt("task", "", body, print_at, [])
-                await asyncio.get_event_loop().run_in_executor(None, print_it)
-            except Exception as e:
-                print(f"Delayed print error: {e}")
-
-        asyncio.create_task(fire_delay())
+        delay_id = str(uuid.uuid4())
+        _add_delay(delay_id, fire_at, body, message.channel.id)
+        asyncio.create_task(_run_delay(delay_id, seconds_until, fire_at, body, message.channel.id))
         return
 
     image_attachments = [

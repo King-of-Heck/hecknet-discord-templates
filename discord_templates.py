@@ -1,5 +1,5 @@
 """
-Discord_Printer_Templates_1_15.py
+Discord_Printer_Templates_1_16.py
 Multi-channel Discord → thermal receipt printer with per-channel templates.
 
 Channel templates
@@ -52,7 +52,7 @@ CHANNEL_CONFIG = {
 TIMER_CHANNEL_ID = 0   # heck-timer channel
 
 
-DELAYS_FILE = "pending_delays.json"
+DELAYS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_delays.json")
 
 def _load_delays() -> dict:
     if os.path.exists(DELAYS_FILE):
@@ -509,25 +509,37 @@ def print_receipt(template, author, content, timestamp, attachment_imgs):
 async def _run_delay(delay_id: str, seconds_until: float,
                      fire_at: datetime, body: str, channel_id: int):
     """Wait then print the delayed Work Order and post to Discord."""
-    await asyncio.sleep(seconds_until)
-    print_at = datetime.now().astimezone()
-    print(f"Delayed print firing: '{body[:50]}'")
-
     try:
-        def print_it():
-            print_receipt("task", "", body, print_at, [])
-        await asyncio.get_event_loop().run_in_executor(None, print_it)
-    except Exception as e:
-        print(f"Delayed print error: {e}")
+        await asyncio.sleep(seconds_until)
+        print_at = datetime.now().astimezone()
+        print(f"Delayed print firing: '{body[:50]}'")
 
-    try:
-        channel = client.get_channel(channel_id)
-        if channel:
-            await channel.send(f"🕐 **Reminder:** {body}")
-    except Exception as e:
-        print(f"Discord notify error: {e}")
+        loop = asyncio.get_running_loop()
 
-    _remove_delay(delay_id)
+        try:
+            def print_it():
+                print_receipt("task", "", body, print_at, [])
+            await loop.run_in_executor(None, print_it)
+            print(f"Delayed receipt printed.")
+        except Exception as e:
+            print(f"Delayed print error: {e}")
+
+        try:
+            channel = client.get_channel(channel_id)
+            if channel:
+                await channel.send(f"🕐 **Reminder:** {body}")
+                print(f"Discord reminder sent.")
+            else:
+                print(f"Could not find channel {channel_id} to send reminder.")
+        except Exception as e:
+            print(f"Discord notify error: {e}")
+
+        _remove_delay(delay_id)
+
+    except asyncio.CancelledError:
+        print(f"Delay task cancelled for: '{body[:50]}'")
+    except Exception as e:
+        print(f"Unexpected error in delay task: {e}")
 
 
 intents = discord.Intents.default()
@@ -585,7 +597,7 @@ async def on_message(message: discord.Message):
             try:
                 def print_it():
                     send_to_printer(build_timer(label, started_at, fired_at))
-                await asyncio.get_event_loop().run_in_executor(None, print_it)
+                await asyncio.get_running_loop().run_in_executor(None, print_it)
             except Exception as e:
                 print(f"Timer print error: {e}")
 
@@ -658,7 +670,7 @@ async def on_message(message: discord.Message):
             print_receipt(template, message.author.display_name, content,
                           message.created_at.astimezone(), imgs)
 
-        await asyncio.get_event_loop().run_in_executor(None, prepare)
+        await asyncio.get_running_loop().run_in_executor(None, prepare)
         await message.add_reaction("🖨️")
 
     except Exception as e:

@@ -1,0 +1,4 @@
+discord.py
+pillow
+pywin32
+requests

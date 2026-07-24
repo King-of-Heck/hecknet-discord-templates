@@ -51,13 +51,17 @@ ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 # Channel  template mapping
 # Template names: "task" | "notes" | "plain"
 
-CHANNEL_CONFIG = {
-    0: "task",    # To-Do
-    0: "notes",   # Notes
-    0: "plain",   # General Printer
-}
+# Enable Developer Mode in Discord, then right-click a channel > Copy ID.
+TODO_CHANNEL_ID    = 0
+NOTES_CHANNEL_ID   = 0
+GENERAL_CHANNEL_ID = 0
+TIMER_CHANNEL_ID   = 0   # optional; leave at 0 to disable !timer
 
-TIMER_CHANNEL_ID = 0   # heck-timer channel
+CHANNEL_CONFIG = {
+    TODO_CHANNEL_ID:    "task",
+    NOTES_CHANNEL_ID:   "notes",
+    GENERAL_CHANNEL_ID: "plain",
+}
 
 
 DELAYS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_delays.json")
@@ -689,6 +693,13 @@ async def on_message(message: discord.Message):
 
 if __name__ == "__main__":
     if DISCORD_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("Paste your bot token into DISCORD_TOKEN at the top of the file!")
+        print("Set DISCORD_TOKEN at the top of the file first.")
+        exit(1)
+    missing = [n for n, v in (("TODO_CHANNEL_ID", TODO_CHANNEL_ID),
+                              ("NOTES_CHANNEL_ID", NOTES_CHANNEL_ID),
+                              ("GENERAL_CHANNEL_ID", GENERAL_CHANNEL_ID))
+               if not v]
+    if missing:
+        print("Set these at the top of the file first: " + ", ".join(missing))
         exit(1)
     client.run(DISCORD_TOKEN)

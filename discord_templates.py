@@ -1,12 +1,20 @@
 """
-Discord_Printer_Templates_1_16.py
-Multi-channel Discord → thermal receipt printer with per-channel templates.
+Multi-channel Discord printer.
 
-Channel templates
-  To-Do  (0) → HeckNet header w/ skulls, Work Order number,
-                                  dividers, then the note body
-  Notes  (0) → HeckNotes header
-  General(0) → No header — plain text only
+Watches several Discord channels and prints each one with its own receipt
+template - a work-order layout for To-Do, a memorandum layout for Notes, and
+plain text for General.
+
+Two scheduling commands are supported on the To-Do channel:
+
+    !timer 10 minutes            print a reminder after a delay
+    !delay (DDMMYY HH:MM) text   print at a specific date and time
+    !delay 1 week text           print after a relative duration
+
+Pending delays survive a restart; anything that came due while the bot was
+down prints on startup.
+
+    python discord_templates.py
 """
 
 import asyncio

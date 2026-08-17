@@ -9,6 +9,7 @@ Watches several Discord channels and prints each with its own receipt layout.
 | To-Do | HeckNet header, work order number, dividers, body |
 | Notes | Memorandum header with date and time |
 | General | Plain text, no header |
+| Borrow (optional) | Plain text, no header |
 
 The work order number is `DDMMYYHHmm`, generated at print time.
 
@@ -36,6 +37,8 @@ fires the bot also posts a reminder back to the channel.
 3. Enable Developer Mode in Discord, right-click each channel, Copy ID, and
    fill in `TODO_CHANNEL_ID`, `NOTES_CHANNEL_ID`, `GENERAL_CHANNEL_ID` and
    `TIMER_CHANNEL_ID`.
+4. Optionally set `BORROW_CHANNEL_ID` to print borrow requests that a web
+   form posts to that channel through a Discord webhook. Leave it at 0 to skip it.
 
 ## Requirements
 

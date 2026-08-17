@@ -4,6 +4,11 @@ Version numbers were reassigned for release (the old scheme bumped the
 minor version for bugfixes); the original number is in parentheses. The
 notes below are from each script's own version history.
 
+## 1.11.0  (originally 1.17)
+
+Added Borrow channel (hecknet/stacks web form -> Discord webhook -> printer) to
+CHANNEL_CONFIG, using the plain template.
+
 ## 1.10.2  (originally 1.16)
 
 Fixed asyncio.get_event_loop() deprecation (now get_running_loop()). Added outer

@@ -56,12 +56,15 @@ TODO_CHANNEL_ID    = 0
 NOTES_CHANNEL_ID   = 0
 GENERAL_CHANNEL_ID = 0
 TIMER_CHANNEL_ID   = 0   # optional; leave at 0 to disable !timer
+BORROW_CHANNEL_ID  = 0   # optional; borrow requests posted by a web form
 
 CHANNEL_CONFIG = {
     TODO_CHANNEL_ID:    "task",
     NOTES_CHANNEL_ID:   "notes",
     GENERAL_CHANNEL_ID: "plain",
 }
+if BORROW_CHANNEL_ID:
+    CHANNEL_CONFIG[BORROW_CHANNEL_ID] = "plain"
 
 
 DELAYS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_delays.json")

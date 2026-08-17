@@ -2,8 +2,8 @@
 Multi-channel Discord printer.
 
 Watches several Discord channels and prints each one with its own receipt
-template - a work-order layout for To-Do, a memorandum layout for Notes, and
-plain text for General.
+template - a work-order layout for To-Do, a memorandum layout for Notes,
+plain text for General, and a request slip for an optional Borrow channel.
 
 Two scheduling commands are supported on the To-Do channel:
 
@@ -49,7 +49,7 @@ MAX_MSG_LENGTH = 2000
 ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 
 # Channel  template mapping
-# Template names: "task" | "notes" | "plain"
+# Template names: "task" | "notes" | "plain" | "borrow"
 
 # Enable Developer Mode in Discord, then right-click a channel > Copy ID.
 TODO_CHANNEL_ID    = 0
@@ -64,7 +64,7 @@ CHANNEL_CONFIG = {
     GENERAL_CHANNEL_ID: "plain",
 }
 if BORROW_CHANNEL_ID:
-    CHANNEL_CONFIG[BORROW_CHANNEL_ID] = "plain"
+    CHANNEL_CONFIG[BORROW_CHANNEL_ID] = "borrow"
 
 
 DELAYS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_delays.json")
@@ -330,6 +330,56 @@ def build_notes(author: str, content: str, timestamp: datetime,
     return _attach_images(output, attachment_imgs)
 
 
+def build_borrow(author: str, content: str, timestamp: datetime,
+                 attachment_imgs: list) -> Image.Image:
+    S       = RENDER_SCALE
+    paper_w = PAPER_PX * S
+    margin  = MARGIN_PX * S
+    text_w  = TEXT_PX * S
+    line_h  = (FONT_SIZE + 6) * S
+
+    font_n     = load_font(bold=False)
+    font_b     = load_font(bold=True)
+    font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
+    font_skull = load_skull_font(size=SKULL_FONT_SIZE)
+    DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
+
+    ops = []
+
+    def add(text, bold=False, align="left", small=False):
+        ops.append((text, font_sm if small else (font_b if bold else font_n), align))
+
+    def div():
+        add(DIVIDER)
+
+    # Same layout as Notes, titled for borrow requests.
+    add("",   align="center")                              # skull header placeholder
+    div()
+    add("Borrow Request", bold=True, align="center")
+    add("via hecknet/stacks", align="center", small=True)
+    add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
+    add(timestamp.strftime("@ %H:%M"),      align="center", small=True)
+    div()
+
+    if content.strip():
+        for paragraph in content.splitlines():
+            if not paragraph.strip():
+                add(" ")
+                continue
+            for line in word_wrap(paragraph, font_n, text_w):
+                add(line)
+        div()
+
+    hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
+
+    draw = ImageDraw.Draw(hi_res)
+    draw_skull_header(draw, "HeckNet", font_b, font_skull,
+                      paper_w, margin // 2 + SKULL_Y_OFFSET)
+
+    output = _downsample(hi_res, PAPER_PX, y)
+    return _attach_images(output, attachment_imgs)
+
+
 def build_plain(author: str, content: str, timestamp: datetime,
                 attachment_imgs: list) -> Image.Image:
     S       = RENDER_SCALE
@@ -492,9 +542,10 @@ def parse_delay(text: str):
     return None
 
 BUILDERS = {
-    "task":  build_task,
-    "notes": build_notes,
-    "plain": build_plain,
+    "task":   build_task,
+    "notes":  build_notes,
+    "plain":  build_plain,
+    "borrow": build_borrow,
 }
 
 def build_receipt(template: str, author: str, content: str,

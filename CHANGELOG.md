@@ -4,6 +4,12 @@ Version numbers were reassigned for release (the old scheme bumped the
 minor version for bugfixes); the original number is in parentheses. The
 notes below are from each script's own version history.
 
+## 1.12.0  (originally 1.18)
+
+Gave the Borrow channel its own template (build_borrow) matching the HeckNotes
+house style: skull header, "Borrow Request" title, date/time, dividers. Channel
+remapped from "plain" to "borrow".
+
 ## 1.11.0  (originally 1.17)
 
 Added Borrow channel (hecknet/stacks web form -> Discord webhook -> printer) to

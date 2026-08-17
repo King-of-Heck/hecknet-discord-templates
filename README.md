@@ -9,7 +9,7 @@ Watches several Discord channels and prints each with its own receipt layout.
 | To-Do | HeckNet header, work order number, dividers, body |
 | Notes | Memorandum header with date and time |
 | General | Plain text, no header |
-| Borrow (optional) | Plain text, no header |
+| Borrow (optional) | HeckNet header, "Borrow Request" title, date and time, body |
 
 The work order number is `DDMMYYHHmm`, generated at print time.
 

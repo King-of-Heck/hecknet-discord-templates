@@ -4,6 +4,13 @@ Version numbers were reassigned for release (the old scheme bumped the
 minor version for bugfixes); the original number is in parentheses. The
 notes below are from each script's own version history.
 
+## 1.12.1  (originally 1.19)
+
+Borrow template no longer prints its own "Borrow Request" title or "via
+hecknet/stacks" line — the web form's message body already carries ":: BORROW
+REQUEST ::" and "- hecknet/stacks", so those were doubling up on the slip. Kept
+the 💀 HeckNet 💀 skull header + date/time; the message body supplies the rest.
+
 ## 1.12.0  (originally 1.18)
 
 Gave the Borrow channel its own template (build_borrow) matching the HeckNotes

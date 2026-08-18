@@ -352,11 +352,11 @@ def build_borrow(author: str, content: str, timestamp: datetime,
     def div():
         add(DIVIDER)
 
-    # Same layout as Notes, titled for borrow requests.
+    # Same layout as Notes, minus the title and source lines: the web form's
+    # message body already carries ":: BORROW REQUEST ::" and "- hecknet/stacks",
+    # so printing them here too would double up on the slip.
     add("",   align="center")                              # skull header placeholder
     div()
-    add("Borrow Request", bold=True, align="center")
-    add("via hecknet/stacks", align="center", small=True)
     add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
     add(timestamp.strftime("@ %H:%M"),      align="center", small=True)
     div()

@@ -545,13 +545,58 @@ def parse_delay(text: str):
 
     return None
 
-# Template: Board (hecknet/board web notes). Currently identical to the borrow
-# slip -- skull header + date/time + body -- because the web form body carries
-# ":: THE BOARD ::", the handle, and "- hecknet/board". Kept as its own named
-# builder so board slips can diverge from borrow without touching that template.
+# Template: Board (hecknet/board web notes). Same shape as the borrow slip --
+# skull header + date/time + body -- but the ":: THE BOARD ::" header line is
+# centered while the message and handle stay left-aligned.
 def build_board(author: str, content: str, timestamp: datetime,
                 attachment_imgs: list) -> Image.Image:
-    return build_borrow(author, content, timestamp, attachment_imgs)
+    S       = RENDER_SCALE
+    paper_w = PAPER_PX * S
+    margin  = MARGIN_PX * S
+    text_w  = TEXT_PX * S
+    line_h  = (FONT_SIZE + 6) * S
+
+    font_n     = load_font(bold=False)
+    font_b     = load_font(bold=True)
+    font_sm    = load_font(bold=False, size=FONT_SIZE - 8)
+    font_skull = load_skull_font(size=SKULL_FONT_SIZE)
+    DIVIDER    = "─" * int(text_w / (FONT_SIZE * S * 0.62))
+
+    ops = []
+
+    def add(text, bold=False, align="left", small=False):
+        ops.append((text, font_sm if small else (font_b if bold else font_n), align))
+
+    def div():
+        add(DIVIDER)
+
+    add("",   align="center")                              # skull header placeholder
+    div()
+    add(timestamp.strftime("%A, %B %d %Y"), align="center", small=True)
+    add(timestamp.strftime("@ %H:%M"),      align="center", small=True)
+    div()
+
+    if content.strip():
+        for paragraph in content.splitlines():
+            if not paragraph.strip():
+                add(" ")
+                continue
+            # center only the board header; message + handle stay left.
+            if paragraph.strip() == ":: THE BOARD ::":
+                add(paragraph.strip(), align="center")
+                continue
+            for line in word_wrap(paragraph, font_n, text_w):
+                add(line)
+        div()
+
+    hi_res, y = _render_ops(ops, paper_w, margin, line_h, top_pad=SKULL_Y_OFFSET)
+
+    draw = ImageDraw.Draw(hi_res)
+    draw_skull_header(draw, "HeckNet", font_b, font_skull,
+                      paper_w, margin // 2 + SKULL_Y_OFFSET)
+
+    output = _downsample(hi_res, PAPER_PX, y)
+    return _attach_images(output, attachment_imgs)
 
 BUILDERS = {
     "task":   build_task,

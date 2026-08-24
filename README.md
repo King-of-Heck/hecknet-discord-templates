@@ -10,7 +10,7 @@ Watches several Discord channels and prints each with its own receipt layout.
 | Notes | Memorandum header with date and time |
 | General | Plain text, no header |
 | Borrow (optional) | HeckNet header, date and time, body |
-| Board (optional) | Same as Borrow |
+| Board (optional) | HeckNet header, date and time, body with the `:: THE BOARD ::` line centred |
 
 The work order number is `DDMMYYHHmm`, generated at print time.
 

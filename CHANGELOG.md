@@ -4,6 +4,12 @@ Version numbers were reassigned for release (the old scheme bumped the
 minor version for bugfixes); the original number is in parentheses. The
 notes below are from each script's own version history.
 
+## 1.14.0  (originally 1.21)
+
+Board slip diverged from borrow: build_board is now its own template (no longer
+delegating). Centers the ":: THE BOARD ::" header line; message + handle stay
+left-aligned. The web form no longer sends a "- hecknet/board" source line.
+
 ## 1.13.0  (originally 1.20)
 
 Added the Board channel (hecknet/board web form -> Discord webhook -> printer)

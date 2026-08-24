@@ -4,6 +4,14 @@ Version numbers were reassigned for release (the old scheme bumped the
 minor version for bugfixes); the original number is in parentheses. The
 notes below are from each script's own version history.
 
+## 1.13.0  (originally 1.20)
+
+Added the Board channel (hecknet/board web form -> Discord webhook -> printer)
+to CHANNEL_CONFIG, mapped to a new "board" template. build_board currently
+delegates to build_borrow (skull header + date/time + body); the web form body
+carries ":: THE BOARD ::" / handle / "- hecknet/board". Its own seam so board
+slips can diverge from borrow later.
+
 ## 1.12.1  (originally 1.19)
 
 Borrow template no longer prints its own "Borrow Request" title or "via

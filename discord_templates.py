@@ -3,7 +3,8 @@ Multi-channel Discord printer.
 
 Watches several Discord channels and prints each one with its own receipt
 template - a work-order layout for To-Do, a memorandum layout for Notes,
-plain text for General, and a request slip for an optional Borrow channel.
+plain text for General, and web-form slips for the optional Borrow and Board
+channels.
 
 Two scheduling commands are supported on the To-Do channel:
 
@@ -49,7 +50,7 @@ MAX_MSG_LENGTH = 2000
 ALLOWED_USERS  = []                             # list of user IDs to whitelist,
 
 # Channel  template mapping
-# Template names: "task" | "notes" | "plain" | "borrow"
+# Template names: "task" | "notes" | "plain" | "borrow" | "board"
 
 # Enable Developer Mode in Discord, then right-click a channel > Copy ID.
 TODO_CHANNEL_ID    = 0
@@ -57,6 +58,7 @@ NOTES_CHANNEL_ID   = 0
 GENERAL_CHANNEL_ID = 0
 TIMER_CHANNEL_ID   = 0   # optional; leave at 0 to disable !timer
 BORROW_CHANNEL_ID  = 0   # optional; borrow requests posted by a web form
+BOARD_CHANNEL_ID   = 0   # optional; board notes posted by a web form
 
 CHANNEL_CONFIG = {
     TODO_CHANNEL_ID:    "task",
@@ -65,6 +67,8 @@ CHANNEL_CONFIG = {
 }
 if BORROW_CHANNEL_ID:
     CHANNEL_CONFIG[BORROW_CHANNEL_ID] = "borrow"
+if BOARD_CHANNEL_ID:
+    CHANNEL_CONFIG[BOARD_CHANNEL_ID] = "board"
 
 
 DELAYS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pending_delays.json")
@@ -541,11 +545,20 @@ def parse_delay(text: str):
 
     return None
 
+# Template: Board (hecknet/board web notes). Currently identical to the borrow
+# slip -- skull header + date/time + body -- because the web form body carries
+# ":: THE BOARD ::", the handle, and "- hecknet/board". Kept as its own named
+# builder so board slips can diverge from borrow without touching that template.
+def build_board(author: str, content: str, timestamp: datetime,
+                attachment_imgs: list) -> Image.Image:
+    return build_borrow(author, content, timestamp, attachment_imgs)
+
 BUILDERS = {
     "task":   build_task,
     "notes":  build_notes,
     "plain":  build_plain,
     "borrow": build_borrow,
+    "board":  build_board,
 }
 
 def build_receipt(template: str, author: str, content: str,
